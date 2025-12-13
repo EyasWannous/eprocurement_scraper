@@ -165,6 +165,16 @@ class ProductClassifier:
         df = df[df['rich_text'] != ""]
         return df
     
+    def _clean_text(self, text):
+        """Removes HTML tags and normalizes whitespace."""
+        if not text or not isinstance(text, str):
+            return ""
+        # simple regex for speed, or use BeautifulSoup if installed
+        import re
+        text = re.sub(r'<[^>]+>', ' ', text)  # remove tags
+        text = re.sub(r'\s+', ' ', text)      # normalize whitespace
+        return text.strip()
+
     def classify(self, product_data, use_llm=True, top_k=None):
         if self.index is None:
             self.load()
@@ -172,12 +182,12 @@ class ProductClassifier:
         if top_k is None:
             top_k = self.top_k
         
-        product_name = product_data.get('product_name', '')
-        short_desc = product_data.get('short_description', '')
-        long_desc = product_data.get('long_description', '')
-        tech_specs = product_data.get('technical_specs', '')
-        category = product_data.get('category', '')
-        subcategory = product_data.get('subcategory', '')
+        product_name = self._clean_text(product_data.get('product_name', ''))
+        short_desc = self._clean_text(product_data.get('short_description', ''))
+        long_desc = self._clean_text(product_data.get('long_description', ''))
+        tech_specs = self._clean_text(str(product_data.get('technical_specs', '')))
+        category = self._clean_text(product_data.get('category', ''))
+        subcategory = self._clean_text(product_data.get('subcategory', ''))
         
         query_text = f"{product_name} {category} {subcategory} {short_desc}"
         candidates = self._vector_search(product_name, query_text, top_k)
@@ -191,7 +201,11 @@ Long Description: {long_desc[:500]}{'...' if len(long_desc) > 500 else ''}
 Technical Specs: {tech_specs[:500]}{'...' if len(tech_specs) > 500 else ''}"""
             return self._llm_rerank(product_name, enhanced_desc, candidates)
         else:
-            return candidates[0] if candidates else None
+            # add default confidence for vector-only search
+            result = candidates[0] if candidates else None
+            if result:
+                result['confidence_score'] = 0.5  # low confidence for vector-only
+            return result
     
     def _vector_search(self, product_name, query_text, top_k):
         query_embedding = self.model.encode([query_text], convert_to_numpy=True).astype('float32')
@@ -229,8 +243,10 @@ Respond with JSON only:
 {{
   "selected_type_id": 12345,
   "classification_path": "115547.116749.12345",
-  "reasoning": "why this specific type"
+  "reasoning": "why this specific type",
+  "confidence_score": 0.95
 }}
+confidence_score should be between 0.0 and 1.0 (1.0 = 100% sure).
 """
         
         try:
@@ -256,10 +272,12 @@ Respond with JSON only:
             
             result = json.loads(response_text)
             selected_id = result.get('selected_type_id')
+            confidence = result.get('confidence_score', 0.8)
             
             for candidate in candidates:
                 if candidate['id'] == selected_id:
                     candidate['llm_reasoning'] = result.get('reasoning', '')
+                    candidate['confidence_score'] = confidence
                     # ensure we use the numeric_path from candidate, not LLM's text path
                     if 'numeric_path' in candidate:
                         candidate['classification_path'] = candidate['numeric_path']

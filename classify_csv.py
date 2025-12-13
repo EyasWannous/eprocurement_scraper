@@ -31,7 +31,6 @@ def classify_csv(input_file, output_file=None, limit=None, start=0, end=None):
     elif limit is not None:
         df = df.iloc[start:start+limit]
         print(f"Processing {len(df)} products starting from row {start}")
-    elif start > 0:
         df = df.iloc[start:]
         print(f"Processing from row {start} onwards ({len(df)} products)")
     
@@ -66,6 +65,7 @@ def classify_csv(input_file, output_file=None, limit=None, start=0, end=None):
                 row['classification_path'] = result.get('classification_path', '')
                 row['classification_name'] = result.get('name', '')
                 row['classification_reasoning'] = result.get('llm_reasoning', '')
+                row['confidence_score'] = result.get('confidence_score', '')
                 print(f"  → {result['name']} (ID: {result['id']})")
             else:
                 row['type_id'] = None
@@ -81,6 +81,11 @@ def classify_csv(input_file, output_file=None, limit=None, start=0, end=None):
     
     # save results
     result_df = pd.DataFrame(results)
+    
+    # ensure columns are in a nice order
+    cols = ['brand', 'product_name', 'type_id', 'classification_path', 'classification_name', 'confidence_score', 'classification_reasoning']
+    remaining_cols = [c for c in result_df.columns if c not in cols]
+    result_df = result_df[cols + remaining_cols]
     
     if output_file is None:
         # auto-generate output filename
