@@ -233,23 +233,23 @@ class SikaSpider(scrapy.Spider):
         name = response.css('h1::text').get() or response.css('title::text').get()
         item['product_name'] = self.clean_text(name) if name else ''
         
-        # 3. Short Description - Enhanced fallback
-        short_desc = response.css('meta[name="description"]::attr(content)').get()
-        if not short_desc:
+        # 3. Long Description - Enhanced fallback
+        long_desc_val = response.css('meta[name="description"]::attr(content)').get()
+        if not long_desc_val:
             # Fallback: First paragraph under H1 or Product Details
             first_p = response.css('.product-details p::text, .content p::text').get()
             if first_p:
-                short_desc = first_p
-        item['short_description'] = self.clean_text(short_desc) if short_desc else ''
+                long_desc_val = first_p
+        item['long_description'] = self.clean_text(long_desc_val) if long_desc_val else ''
         
-        # 4. Long Description - no fallbacks
+        # 4. Short Description - no fallbacks
         paragraphs = response.css('p::text').getall()
-        meaningful_paras = []
+        short_desc_paras = []
         for para in paragraphs[:5]:
             cleaned = self.clean_text(para)
             if cleaned and len(cleaned) > 50:
-                meaningful_paras.append(cleaned)
-        item['long_description'] = ' '.join(meaningful_paras)
+                short_desc_paras.append(cleaned)
+        item['short_description'] = ' '.join(short_desc_paras)
         
         # 5. Technical Specs - Enhanced (Tables + Headers)
         specs = {}

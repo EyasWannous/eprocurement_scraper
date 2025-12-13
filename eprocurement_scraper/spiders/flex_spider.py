@@ -125,8 +125,8 @@ class FlexToolsSpider(scrapy.Spider):
         
         item['product_name'] = self.clean_text(product_name) if product_name else ''
         
-        # 3. Short Description
-        short_desc_selectors = [
+        # 3. Long Description
+        long_desc_selectors = [
             'meta[name="description"]::attr(content)',
             '.short-description p::text',
             '.product-short-description p::text',
@@ -134,23 +134,23 @@ class FlexToolsSpider(scrapy.Spider):
             '.excerpt p::text'
         ]
         
-        short_desc = ''
-        for selector in short_desc_selectors:
+        long_desc_val = ''
+        for selector in long_desc_selectors:
             desc = response.css(selector).get()
             if desc and desc.strip():
-                short_desc = desc.strip()
+                long_desc_val = desc.strip()
                 break
         
         # Fallback: First paragraph from product description
-        if not short_desc:
+        if not long_desc_val:
             first_para = response.css('.product-description p::text, .description p::text').get()
             if first_para:
-                short_desc = first_para[:200] + '...' if len(first_para) > 200 else first_para
+                long_desc_val = first_para[:200] + '...' if len(first_para) > 200 else first_para
         
-        item['short_description'] = self.clean_text(short_desc) if short_desc else ''
+        item['long_description'] = self.clean_text(long_desc_val) if long_desc_val else ''
         
-        # 4. Long Description
-        long_description = ''
+        # 4. Short Description
+        short_desc_val = ''
         
         # Try specific description containers first
         description_selectors = [
@@ -171,11 +171,11 @@ class FlexToolsSpider(scrapy.Spider):
                 desc_content = re.sub(r'<script\b[^<]*(?:(?!</script>)<[^<]*)*</script>', '', desc_content, flags=re.DOTALL)
                 desc_content = re.sub(r'<style\b[^<]*(?:(?!</style>)<[^<]*)*</style>', '', desc_content, flags=re.DOTALL)
                 desc_content = re.sub(r'<[^>]+>', '', desc_content)  # Remove all HTML tags
-                long_description = self.clean_text(desc_content)
+                short_desc_val = self.clean_text(desc_content)
                 break
         
         # If no structured description found, get paragraphs
-        if not long_description:
+        if not short_desc_val:
             paragraphs = response.css('p::text').getall()
             meaningful_paras = []
             for para in paragraphs[:8]:  # First 8 paragraphs
@@ -184,7 +184,7 @@ class FlexToolsSpider(scrapy.Spider):
                     meaningful_paras.append(cleaned)
                     if len(meaningful_paras) >= 3:  # Limit to 3 meaningful paragraphs
                         break
-            long_description = ' '.join(meaningful_paras)
+            short_desc_val = ' '.join(meaningful_paras)
         
         # Clean up common noise from description
         noise_phrases = [
@@ -193,9 +193,9 @@ class FlexToolsSpider(scrapy.Spider):
             'Spare part drawing', 'Product data sheet'
         ]
         for phrase in noise_phrases:
-            long_description = long_description.replace(phrase, '')
+            short_desc_val = short_desc_val.replace(phrase, '')
             
-        item['long_description'] = self.clean_text(long_description)
+        item['short_description'] = self.clean_text(short_desc_val)
         
         # 5. Technical Specifications
         specs = {}
