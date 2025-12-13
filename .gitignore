@@ -1,0 +1,66 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Scrapy stuff
+.scrapy
+
+# Logs
+*.log
+
+# Cache
+__pycache__/
+*.pyc
+.cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project-specific
+# Output CSV files (scraped data) - keep sample outputs
+# !classification_tree.csv  # Keep taxonomy file
+# !output/sika_products.csv  # Keep sample output
+# !output/flex_tools_products.csv  # Keep sample output
+# *.csv
+
+# Cache directory (FAISS index and dataframes)
+.cache/
+
+# Test files
+test_*.csv
+test_*.py
+
+# Environment files
+.env
