@@ -225,7 +225,8 @@ class SikaSpider(scrapy.Spider):
             return
 
         item = ProductItem()
-        
+        item['source_url'] = response.url
+
         # 1. Brand
         item['brand'] = 'Sika'
         
