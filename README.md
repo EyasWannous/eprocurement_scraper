@@ -18,17 +18,20 @@ An intelligent web scraping system that automatically extracts product informati
 ## 🚀 Installation
 
 1. **Clone the repository**
+
 ```bash
-git clone <your-repo-url>
+git clone git@github.com:EyasWannous/eprocurement_scraper.git
 cd eprocurement_scraper
 ```
 
 2. **Install dependencies**
+
 ```bash
 pip install -r requirements.txt
 ```
 
 3. **Configure LLM Provider**
+
 ```bash
 # Create .env file
 cp .env.example .env
@@ -44,22 +47,26 @@ GROQ_API_KEY=your_api_key_here
 ```
 
 **Get API Keys:**
+
 - Gemini: https://makersuite.google.com/app/apikey
 - Groq: https://console.groq.com/keys (free tier available!)
 
 ## 🎯 Quick Start
 
 ### Test with 10 Products
+
 ```bash
 scrapy crawl sika -s CLOSESPIDER_ITEMCOUNT=10 -o test_output.csv
 ```
 
 ### Run Full Spider
+
 ```bash
 scrapy crawl sika -o output/sika_products.csv
 ```
 
 ### Available Spiders
+
 ```bash
 # List all available spiders
 scrapy list
@@ -90,7 +97,9 @@ eprocurement_scraper/
 ## 🔧 Configuration
 
 ### Switch LLM Provider
+
 Choose between Gemini (Google) or Groq (Llama) in `.env`:
+
 ```bash
 # Use Gemini (default)
 LLM_PROVIDER=gemini
@@ -102,12 +111,15 @@ GROQ_API_KEY=your_key
 ```
 
 **Groq Benefits:**
+
 - Faster inference (~2-3x speed)
 - Generous free tier
 - Llama 3.3 70B model
 
 ### Disable Classification
+
 In `eprocurement_scraper/pipelines.py`:
+
 ```python
 class ClassificationPipeline:
     def __init__(self):
@@ -115,12 +127,15 @@ class ClassificationPipeline:
 ```
 
 ### Adjust Number of Candidates
+
 In `eprocurement_scraper/classifier.py`:
+
 ```python
 self.top_k = 10  # Number of categories to send to LLM
 ```
 
 ### Custom Output Path
+
 ```bash
 scrapy crawl sika -o custom_folder/my_products.csv
 ```
@@ -129,22 +144,23 @@ scrapy crawl sika -o custom_folder/my_products.csv
 
 CSV files include:
 
-| Column | Description |
-|--------|-------------|
-| `brand` | Product brand |
-| `product_name` | Product name |
-| `category` | Website category |
-| `subcategory` | Website subcategory |
-| `technical_specs` | JSON technical specifications |
-| `short_description` | Brief description |
-| `long_description` | Detailed description |
-| `type_id` | **AI-classified category ID** |
-| `classification_path` | **Taxonomy path** |
-| `scraped_timestamp` | When scraped |
+| Column                  | Description                         |
+| ----------------------- | ----------------------------------- |
+| `brand`               | Product brand                       |
+| `product_name`        | Product name                        |
+| `category`            | Website category                    |
+| `subcategory`         | Website subcategory                 |
+| `technical_specs`     | JSON technical specifications       |
+| `short_description`   | Brief description                   |
+| `long_description`    | Detailed description                |
+| `type_id`             | **AI-classified category ID** |
+| `classification_path` | **Taxonomy path**             |
+| `scraped_timestamp`   | When scraped                        |
 
 ## 🧪 Testing
 
 ### Classify Existing CSV Data
+
 ```bash
 # Classify first 10 products from sika_products.csv
 python classify_csv.py output/sika_products.csv -l 10
@@ -160,6 +176,7 @@ python classify_csv.py output/sika_products.csv -l 10 -o test_classification.csv
 ```
 
 ### Test Without Classification
+
 ```bash
 scrapy crawl sika -s CLOSESPIDER_ITEMCOUNT=10 \
   -s ITEM_PIPELINES="{'eprocurement_scraper.pipelines.DataCleaningPipeline': 100}" \
@@ -167,6 +184,7 @@ scrapy crawl sika -s CLOSESPIDER_ITEMCOUNT=10 \
 ```
 
 ### Test Specific Spider Limits
+
 ```bash
 # Stop after 50 items
 scrapy crawl flex -s CLOSESPIDER_ITEMCOUNT=50 -o flex_50.csv
@@ -203,16 +221,19 @@ scrapy genspider newbrand example.com
 ## 🐛 Troubleshooting
 
 ### Classification Errors
+
 - Check `.env` has valid `GEMINI_API_KEY`
 - Ensure `classification_tree.csv` exists
 - Review logs for specific error messages
 
 ### Slow Performance
+
 - First run builds cache (~30s) - subsequent runs are fast
 - Disable LLM for bulk scraping if needed
 - Use `CLOSESPIDER_ITEMCOUNT` for testing
 
 ### Cache Issues
+
 ```bash
 # Clear cache to rebuild
 rm -rf .cache
