@@ -141,7 +141,6 @@ class SikaSpider(scrapy.Spider):
         # Extract last part of URL
         last_part = link.split('/')[-1].lower()
         
-        # Product patterns
         product_patterns = [
             r'sika[-a-z]*-[a-z]{1,3}-\d+',           # sika-sigunit-sa-160
             r'sikafiber[-a-z]*-\d+',                 # sikafiber-12, sikafiber-142
@@ -155,7 +154,6 @@ class SikaSpider(scrapy.Spider):
             r'[a-z]+-\d+[a-z]?\.(html|htm)',         # product-123.html
             r'sikaseal[-a-z]*-\d+',                  # sikaseal-490-sl
 
-            # Add these patterns to your product_patterns list:
             r'sikaflex[-a-z]*-\d+',               # sikaflex-2c-ns-ezmix
             r'sikarep[-a-z]*-\d+',                # sikarep-mc-80, sikarep-fine-sa
             r'sikarep-[a-z]+',                    # sikarep-n, sikarep-nf, sikarep-sa
@@ -202,6 +200,9 @@ class SikaSpider(scrapy.Spider):
             r'sika-boom[-a-z0-9]*',               # sika-boom-s, sika-boom-115-flameresistant
             r'sikasil[-a-z0-9]*',                 # sikasil-719-ws, sikasil-403-fire
             r'sikahyflex[-a-z0-9]*',              # sikahyflex-300-eu
+            
+            r'sika-[a-z]+-\d+[a-z]?-\d+'
+            r'sika-[a-z]+\d+[a-z]?'
         ]
         
         for pattern in product_patterns:
@@ -327,7 +328,24 @@ class SikaSpider(scrapy.Spider):
         if not model_number:
             # Try from page text
             all_text = ' '.join(response.css('body ::text').getall())
-            # Look for "Article No. 12345"
+            # Look for explicit product codes: "Article No. 12345"
+            article_match = re.search(r'(?:Article No\.|Product Code|Model No\.|Item No\.)\s*[:\s]*(\S+)', all_text, re.IGNORECASE)
+            if article_match:
+                # Prioritize this as it's more explicit
+                model_number = article_match.group(1).strip()
+                
+            # Final cleanup and assignment
+        if model_number:
+            item['model_number'] = self.clean_text(model_number)
+        else:
+            # Fallback to cleaned product name
+            product_name_parts = item.get('product_name', '').split()
+            if product_name_parts:
+                item['model_number'] = product_name_parts[0] # Assume first word is key identifier
+            else:
+                item['model_number'] = ''
+            
+        self.items_extracted += 1 
         yield item
     
     def is_valid_product_page(self, response):

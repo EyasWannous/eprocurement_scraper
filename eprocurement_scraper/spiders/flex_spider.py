@@ -331,12 +331,10 @@ class FlexToolsSpider(scrapy.Spider):
         # 9. Source URL
         item['source_url'] = response.url
         
-        # 10. Category and Subcategory (based on URL structure)
-        item['category'] = ''
+        # 10. Subcategory (based on URL structure)
         item['subcategory'] = ''
         
         if '/products/' in response.url:
-            item['category'] = 'Products'
             # Extract subcategory from URL
             path_parts = response.url.split('/')
             for i, part in enumerate(path_parts):
@@ -344,7 +342,6 @@ class FlexToolsSpider(scrapy.Spider):
                     if path_parts[i + 1] and not path_parts[i + 1].startswith('product-'):
                         item['subcategory'] = path_parts[i + 1].replace('-', ' ').title()
         elif '/accessories/' in response.url:
-            item['category'] = 'Accessories'
             # Extract subcategory from URL
             path_parts = response.url.split('/')
             for i, part in enumerate(path_parts):
@@ -353,12 +350,10 @@ class FlexToolsSpider(scrapy.Spider):
                         item['subcategory'] = path_parts[i + 1].replace('-', ' ').title()
         
         # Fallback: Use breadcrumbs
-        if not item['category']:
+        if not item['subcategory']:
             breadcrumbs = response.css('.breadcrumb li a::text, .breadcrumbs li a::text, ol.breadcrumb li a::text').getall()
             breadcrumbs = [b.strip() for b in breadcrumbs if b.strip()]
             filtered_crumbs = [b for b in breadcrumbs if b.lower() not in ['home', 'flex-tools.com', '']]
-            if len(filtered_crumbs) > 0:
-                item['category'] = filtered_crumbs[0]
             if len(filtered_crumbs) > 1:
                 item['subcategory'] = filtered_crumbs[1]
         
