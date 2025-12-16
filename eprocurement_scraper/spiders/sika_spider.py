@@ -153,7 +153,7 @@ class SikaSpider(scrapy.Spider):
             r'sigunit[-_]([a-z]{1,3}-\d+)',          # sigunit-sa-430
             r'[a-z]+-\d+[a-z]?\.(html|htm)',         # product-123.html
             r'sikaseal[-a-z]*-\d+',                  # sikaseal-490-sl
-
+            
             r'sikaflex[-a-z]*-\d+',               # sikaflex-2c-ns-ezmix
             r'sikarep[-a-z]*-\d+',                # sikarep-mc-80, sikarep-fine-sa
             r'sikarep-[a-z]+',                    # sikarep-n, sikarep-nf, sikarep-sa
@@ -164,18 +164,18 @@ class SikaSpider(scrapy.Spider):
             r'sikabond[-a-z]*',                   # sikabond-dv
             r'sikalatex',                         # sikalatex (standalone)
             r'intracrete[-a-z]*-\d+',             # intracrete-eh-v-ae
-
+            
             r'sika-injection[-a-z]*-\d+',         # sika-injection-101rc
             r'sikaswell[-a-z]*',                  # sikaswell-a-ae
             r'sika-carbodur[-a-z]*',              # sika-carbodur-s
             r'sika-dust[-a-z]*',                  # sika-dust-seal-sa
-
+            
             r'sika-cni[-a-z]*',                   # sika-cni-om, sika-cni-k
             r'sika-mould[-a-z]*',                 # sika-mould-ba
             r'sikalite[-a-z]*',                   # sikalite-ae
             r'sika-antisol[-a-z]*',               # sika-antisol-wb
             r'sikagard[-a-z0-9]*',                # sikagard-550-w-elasticg, sikagard-520-w, sikagard-pw-ae
-
+            
             # Waterproofing products
             r'sikalastic[-a-z0-9]*',              # sikalastic-wr, sikalastic-311-ae, sikalastic-841-st, sikalastic-152-sa
             r'sika-igolflex[-a-z0-9]*',           # sika-igolflex-ae, sika-igolflex-365gcc
@@ -185,13 +185,13 @@ class SikaSpider(scrapy.Spider):
             r'sikaproof[-a-z0-9]*',               # sikaproof-tape-a, sikaproof-sandwichtape, sikaproof-adhesive-03ae
             r'sika-monotop[-a-z0-9]*',            # sika-monotop-108waterplugae, sika-monotop-615hsfsa, sika-monotop-hsf
             r'sikashield[-a-z0-9]*',              # sikashield-p26-mgsa4mm, sikashield-pb-p15pesa4mm, sikashield-e55-pesa15mm
-
+            
             # Concrete admixtures
             r'sika-stabilizer[-a-z0-9]*',         # sika-stabilizer-312mbf
             r'sika-rugasol[-a-z0-9]*',            # sika-rugasol-2-liquid
             r'sika-separol[-a-z0-9]*',            # sika-separol-320ws
             r'sikacem[-a-z0-9]*',                 # sikacem-100-mp
-
+            
             # Refurbishment products
             r'sikawrap[-a-z0-9]*',                # sikawrap-230-c, sikawrap-600-c-wv
             r'sika-ferrogard[-a-z0-9]*',          # sika-ferrogard-903plus, sika-ferrogard-710reba, sika-ferrogard-500crete
@@ -298,22 +298,90 @@ class SikaSpider(scrapy.Spider):
 
         item['technical_specs'] = json.dumps(specs) if specs else ''
         
-        # 6. Datasheet URL - Improved
+        # 6. Datasheet URL - Enhanced
         datasheet_url = ''
-        pdf_links = response.css('a[href$=".pdf"]')
-        for link in pdf_links:
-            link_text = link.css('::text').get(default='').lower()
-            href = link.attrib.get('href', '')
-            if 'data sheet' in link_text or 'pds' in link_text or 'product data' in link_text:
-                datasheet_url = urljoin(response.url, href)
-                break
         
+        # Strategy 1: Look for explicit "Product Data Sheet" or "PDS" links
+        # We look at text, title, and href for strong keywords
+        pds_candidates = []
+        
+        # Get all links that might be PDFs
+        all_pdf_links = response.css('a[href]')
+        
+        for link in all_pdf_links:
+            href = link.attrib.get('href', '').strip()
+            text = link.css('::text').get(default='').strip().lower()
+            title = link.attrib.get('title', '').strip().lower()
+            
+            # Skip if not a likely file download or if it's a known non-PDS type
+            if not href or href.startswith(('javascript:', '#', 'mailto:')):
+                continue
+                
+            href_lower = href.lower()
+            
+            # Score the link
+            score = 0
+            is_pdf = href_lower.endswith('.pdf')
+            
+            # Strong indicators in text/title
+            if 'product data sheet' in text or 'product data sheet' in title:
+                score += 10
+            if 'pds' in text.split() or 'pds' in title.split(): # specific word match
+                score += 8
+            if 'technical data sheet' in text or 'technical data sheet' in title:
+                score += 8
+            if 'tds' in text.split() or 'tds' in title.split():
+                score += 6
+                
+            # Indicators in URL
+            if 'pds' in href_lower:
+                score += 5
+            if 'data-sheet' in href_lower or 'datasheet' in href_lower:
+                score += 4
+                
+            # Negative indicators (Safety Data Sheets, Brochures, etc)
+            if 'safety' in text or 'sds' in text or 'msds' in text:
+                score -= 20
+            if 'safety' in title or 'sds' in title or 'msds' in title:
+                score -= 20
+            if 'safety' in href_lower or 'sds' in href_lower or 'msds' in href_lower:
+                score -= 20
+                
+            if 'brochure' in text or 'brochure' in title or 'brochure' in href_lower:
+                score -= 10
+            if 'flyer' in text or 'flyer' in title or 'flyer' in href_lower:
+                score -= 10
+            if 'declaration' in text or 'dop' in text: # Declaration of Performance
+                score -= 5
+            
+            # Penalize generic PDS pages
+            if 'pds.html' in href_lower or 'documents-resources' in href_lower:
+                score -= 30
+                
+            # Boost if it's a PDF
+            if is_pdf:
+                score += 20 # Increased from 2
+            
+            if score > 0:
+                pds_candidates.append((score, urljoin(response.url, href)))
+        
+        # Sort candidates by score (descending)
+        pds_candidates.sort(key=lambda x: x[0], reverse=True)
+        
+        if pds_candidates:
+            datasheet_url = pds_candidates[0][1]
+        
+        # Strategy 2: Fallback - Look for any PDF in a "downloads" section if no strong candidate found
         if not datasheet_url:
-            pdf_hrefs = response.css('a[href*=".pdf"]::attr(href)').getall()
-            for link in pdf_hrefs:
-                if 'pds-' in link.lower() or 'data-sheet' in link.lower() or 'datasheet' in link.lower():
-                    datasheet_url = urljoin(response.url, link)
-                    break
+            download_section = response.css('.downloads, .documents, .related-documents, #downloads')
+            if download_section:
+                potential_pdfs = download_section.css('a[href$=".pdf"]::attr(href)').getall()
+                for pdf in potential_pdfs:
+                    # Simple filter to avoid SDS
+                    if 'sds' not in pdf.lower() and 'safety' not in pdf.lower():
+                        datasheet_url = urljoin(response.url, pdf)
+                        break
+
         item['datasheet_url'] = datasheet_url
         
         # 7. Model Number - Enhanced
