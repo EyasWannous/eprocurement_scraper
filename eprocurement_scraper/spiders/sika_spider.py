@@ -413,6 +413,22 @@ class SikaSpider(scrapy.Spider):
             else:
                 item['model_number'] = ''
             
+        # 8 Subcategory from URL
+        item['subcategory'] = ''
+        
+        if 'gcc.sika.com/en/' in response.url:
+            path_segments = response.url.split('gcc.sika.com/en/')[-1].split('/')
+            if len(path_segments) > 1:
+                clean_segments = [s for s in path_segments[:-1] if s.lower() not in ['construction', 'en']]
+                item['subcategory'] = clean_segments[1].replace('-', ' ').title()
+        
+        if not item['subcategory']:
+            breadcrumbs = response.css('.breadcrumb li a::text, .breadcrumbs li a::text, ol.breadcrumb li a::text').getall()
+            breadcrumbs = [b.strip() for b in breadcrumbs if b.strip()]
+            filtered_crumbs = [b for b in breadcrumbs if b.lower() not in ['home', 'construction', 'sika gcc']]
+            item['subcategory'] = filtered_crumbs[1]
+
+            
         self.items_extracted += 1 
         yield item
     

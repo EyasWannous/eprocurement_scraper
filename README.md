@@ -148,7 +148,7 @@ CSV files include:
 | ----------------------- | ----------------------------------- |
 | `brand`               | Product brand                       |
 | `product_name`        | Product name                        |
-| `category`            | Website category                    |
+| `category`            | Classification category            |
 | `subcategory`         | Website subcategory                 |
 | `technical_specs`     | JSON technical specifications       |
 | `short_description`   | Brief description                   |

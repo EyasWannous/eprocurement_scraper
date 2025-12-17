@@ -1,6 +1,6 @@
 """
 Product classification module using vector search and LLM.
-Supports both Gemini and Groq (Llama) via environment variables.
+Supports Gemini, Groq (Llama), and Cohere via environment variables.
 """
 
 import os
@@ -26,9 +26,16 @@ try:
 except ImportError:
     HAS_GROQ = False
 
+# Cohere support
+try:
+    import cohere
+    HAS_COHERE = True
+except ImportError:
+    HAS_COHERE = False
+
 
 class ProductClassifier:
-    """Handles product classification with FAISS + Gemini/Groq."""
+    """Handles product classification with FAISS + Gemini/Groq/Cohere."""
     
     _instance = None
     _initialized = False
@@ -52,6 +59,7 @@ class ProductClassifier:
         self.llm_provider = os.getenv('LLM_PROVIDER', 'gemini').lower()
         self.gemini_api_key = os.getenv('GEMINI_API_KEY')
         self.groq_api_key = os.getenv('GROQ_API_KEY')
+        self.cohere_api_key = os.getenv('COHERE_API_KEY')
         
         self.cache_dir = Path('.cache')
         self.cache_dir.mkdir(exist_ok=True)
@@ -65,7 +73,11 @@ class ProductClassifier:
         self.llm_model_name = None
         
         # initialize based on provider
-        if self.llm_provider == 'groq' and HAS_GROQ and self.groq_api_key:
+        if self.llm_provider == 'cohere' and HAS_COHERE and self.cohere_api_key:
+            self.llm_client = cohere.ClientV2(api_key=self.cohere_api_key)
+            self.llm_model_name = 'command-r-plus-08-2024'  # current model
+            print(f"[Classifier] Using Cohere ({self.llm_model_name})")
+        elif self.llm_provider == 'groq' and HAS_GROQ and self.groq_api_key:
             self.llm_client = Groq(api_key=self.groq_api_key)
             self.llm_model_name = 'llama-3.3-70b-versatile'  # fast and capable
             print(f"[Classifier] Using Groq ({self.llm_model_name})")
@@ -251,7 +263,13 @@ confidence_score should be between 0.0 and 1.0 (1.0 = 100% sure).
         
         try:
             # call appropriate LLM
-            if self.llm_provider == 'groq':
+            if self.llm_provider == 'cohere':
+                response = self.llm_client.chat(
+                    model=self.llm_model_name,
+                    messages=[{"role": "user", "content": prompt}],
+                )
+                response_text = response.message.content[0].text.strip()
+            elif self.llm_provider == 'groq':
                 response = self.llm_client.chat.completions.create(
                     model=self.llm_model_name,
                     messages=[{"role": "user", "content": prompt}],
@@ -295,11 +313,18 @@ confidence_score should be between 0.0 and 1.0 (1.0 = 100% sure).
                     return candidate
             
             print(f"[Classifier] Warning: LLM returned ID {selected_id} not in candidates")
-            return candidates[0]
+            # Fallback to top vector result with classification_path
+            fallback = candidates[0]
+            if 'classification_path' not in fallback:
+                fallback['classification_path'] = fallback.get('numeric_path', str(fallback['id']))
+            return fallback
         
         except json.JSONDecodeError as e:
             print(f"[Classifier] JSON parsing error: {e}")
-            return candidates[0]
+            fallback = candidates[0]
+            if 'classification_path' not in fallback:
+                fallback['classification_path'] = fallback.get('numeric_path', str(fallback['id']))
+            return fallback
         except Exception as e:
             error_msg = str(e)
             
@@ -312,16 +337,20 @@ confidence_score should be between 0.0 and 1.0 (1.0 = 100% sure).
                 print("\nOptions:")
                 print("  1. Wait for quota reset")
                 if self.llm_provider == 'gemini':
-                    print("  2. Switch to Groq (set LLM_PROVIDER=groq in .env)")
+                    print("  2. Switch to Groq or Cohere (set LLM_PROVIDER in .env)")
                 else:
-                    print("  2. Switch to Gemini (set LLM_PROVIDER=gemini in .env)")
+                    print("  2. Switch to Gemini or Cohere (set LLM_PROVIDER in .env)")
                 print("  3. Disable LLM in pipelines.py")
                 print("\nFalling back to vector search.")
                 print("="*60 + "\n")
             else:
                 print(f"[Classifier] Error: {error_msg}")
             
-            return candidates[0]
+            # Fallback to top vector result with classification_path
+            fallback = candidates[0]
+            if 'classification_path' not in fallback:
+                fallback['classification_path'] = fallback.get('numeric_path', str(fallback['id']))
+            return fallback
 
 
 # Global singleton instance

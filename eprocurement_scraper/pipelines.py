@@ -71,6 +71,7 @@ class ClassificationPipeline:
             if result:
                 item['type_id'] = result['id']
                 item['classification_path'] = result.get('classification_path', '')
+                item['category'] = result['name'] # [NEW] Map classification name to category
                 spider.logger.info(
                     f"[Classification] {item.get('product_name', 'Unknown')[:30]}... "
                     f"→ {result['name']} (ID: {result['id']})"
